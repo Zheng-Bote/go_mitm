@@ -1,0 +1,63 @@
+curl -v -X POST "https://mycompanygroup.demo.saas.com/api/employeeimport" -H "Authorization: Bearer 269e356be69f4d6e8877b15d8b61e718a52efe13895e42bca5c78901fbb1d42c:1AAAAA==" -H "Content-Type: application/json" --data-binary @data.json
+Note: Unnecessary use of -X or --request, POST is already inferred.
+* Host mycompanygroup.demo.saas.com:443 was resolved.
+* IPv6: (none)
+* IPv4: 76.223.87.37, 13.248.214.25
+*   Trying 76.223.87.37:443...
+* Connected to mycompanygroup.demo.saas.com (76.223.87.37) port 443
+* ALPN: curl offers http/1.1
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+*  CAfile: /etc/ssl/certs/ca-certificates.crt
+*  CApath: /etc/ssl/certs
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_128_GCM_SHA256 / x25519 / RSASSA-PSS
+* ALPN: server accepted http/1.1
+* Server certificate:
+*  subject: CN=*.saas.com
+*  start date: Jan 27 00:00:00 2026 GMT
+*  expire date: Feb 25 23:59:59 2027 GMT
+*  subjectAltName: host "mycompanygroup.demo.saas.com" matched cert's "*.demo.saas.com"
+*  issuer: C=US; O=Amazon; CN=Amazon RSA 2048 M04
+*  SSL certificate verify ok.
+*   Certificate level 0: Public key type RSA (2048/112 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 1: Public key type RSA (2048/112 Bits/secBits), signed using sha256WithRSAEncryption
+*   Certificate level 2: Public key type RSA (2048/112 Bits/secBits), signed using sha256WithRSAEncryption
+* using HTTP/1.x
+> POST /api/employeeimport HTTP/1.1
+> Host: mycompanygroup.demo.saas.com
+> User-Agent: curl/8.7.0-DEV
+> Accept: */*
+> Authorization: Bearer 269e356be69f4d6e8877b15d8b61e718a52efe13895e42bca5c78901fbb1d42c:1AAAAA==
+> Content-Type: application/json
+> Content-Length: 762
+> 
+* upload completely sent off: 762 bytes
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+< HTTP/1.1 400 Bad Request
+< Date: Mon, 20 Apr 2026 13:21:10 GMT
+< Content-Type: application/json; charset=utf-8
+< Content-Length: 192
+< Connection: keep-alive
+< Cache-Control: no-cache
+< Pragma: no-cache
+< Expires: -1
+< Set-Cookie: userSystemSettingKey=7e17046685ea516b5a43e69ed0d35602d21f7a7dd941ae0db8ba4e36fe53ce8b; path=/; secure; HttpOnly; SameSite=None
+< Strict-Transport-Security: max-age=31536000
+< Content-Security-Policy: object-src 'none'; default-src 'self' https: 'unsafe-eval' 'unsafe-inline' data: app.pendo.io:* cdn.pendo.io:* pendo-io-static.storage.googleapis.com:* kendo.cdn.telerik.com:* fonts.gstatic.com fonts.googleapis.com maxcdn.bootstrapcdn.com https://api.mdguidelines.com https://tablet.sigwebtablet.com:* http://localhost:* blob: https://tablet.sigwebtablet.com:*
+< X-Content-Type-Options: nosniff
+< X-XSS-Protection: 1; mode=block
+< X-Frame-Options: SAMEORIGIN
+< Referrer-Policy: same-origin
+< Access-Control-Allow-Credentials: true
+< Access-Control-Allow-Headers: authorization,cache-control,pragma,saasAuthorization
+< Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+< 
+* Connection #0 to host mycompanygroup.demo.saas.com left intact
+{"Message":"An unknown error has been encountered. For further assistance, please contact your saas System Administrator. Reference: 3a1b8c23-a53d-49a2-8eb4-2194408aedd9","Code":"MG-000428"}

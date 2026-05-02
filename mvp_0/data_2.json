@@ -1,0 +1,29 @@
+{
+  "options": {
+    "updateExistingRecords": true,
+    "insertBaseTables": true,
+    "forceLookupTableUpdate": true,
+    "disableSegUpdate": false,
+    "autoCreatePortalUser": true,
+    "mergeRecordsWithMatchingSsn": false,
+    "dateFormat": "mm/dd/yyyy"
+  },
+  "records": [
+    {
+      "EmployeeNumber": 537732,
+      "SSNValue": 20012974,
+      "FirstName": "Joseph Maurie Leopoldt Longlongfirstname",
+      "LastName": "Abbott-Longlonglastname",
+      "DateOfBirth": "7/31/1954",
+      "HomeStreet1": "12 Silver Avenue",
+      "HomeCity": "Pretoria",
+      "HomeZip": 2001,
+      "HomeCountry": "ZA",
+      "Organization.Code": "C1",
+      "Department.Code": 21158973,
+      "Supervisor": 584336,
+      "Email": "no_mail_available",
+      "LoginID": ""
+    }
+  ]
+}
