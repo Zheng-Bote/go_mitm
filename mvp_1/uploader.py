@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# SPDX-FileComment: MitM Aggregator Python Prototype
+# SPDX-FileComment: MitM Aggregator Python Prototype (MVP_1)
 # SPDX-FileType: SOURCE
 # SPDX-FileContributor: ZHENG Robert
 # SPDX-FileCopyrightText: 2026 ZHENG Robert
 # SPDX-License-Identifier: Apache-2.0
 #
 # @file uploader.py
-# @brief Python uploader prototype with OAuth2 flow.
-# @version 0.2.0
+# @brief Enhanced Python uploader with logging redirection and HTTP server.
+# @version 0.3.0
 # @date 2026-05-10
 #
 # @author ZHENG Robert (robert @hase-zheng.net)
@@ -18,14 +18,14 @@
 #
 
 """
-uploader.py v0.2.0
+uploader.py v0.3.0
 Flow:
   1) POST /api/refreshtoken  -> returns {"Token": "...", "ExpiryDateTime": "..."}
   2) GET  /api/token/        -> Authorization: Bearer <RefreshToken>
                               returns {"AccessToken": "...", "AccessTokenExpiryDateTime": "..."}
   3) POST /api/employeeimport with Authorization: Bearer <AccessToken> and JSON body
 Usage:
-    ./uploader.py --base-url <CORITY_BASE_URL> --login <CORITY_LOGIN> --password <CORITY_PASSWORD> --upload-file <CORITY_UPLOAD_FILE>
+  ./uploader.py --base-url <CORITY_BASE_URL> --login <CORITY_LOGIN> --password <CORITY_PASSWORD> --upload-file <CORITY_UPLOAD_FILE>
 """
 
 import argparse
@@ -34,6 +34,9 @@ import logging
 import os
 import sys
 import time
+import threading
+import http.server
+import socketserver
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -237,6 +240,37 @@ def parse_args():
     return args
 
 
+# ---------------------------
+# Logging & Server
+# ---------------------------
+def setup_redirection():
+    """Redirects STDOUT and STDERR to a log file <yyyy-mm-dd>.log"""
+    log_filename = datetime.now().strftime("%Y-%m-%d.log")
+    # Open with line buffering (buffering=1) so logs are written promptly
+    f = open(log_filename, "a", encoding="utf-8", buffering=1)
+    sys.stdout = f
+    sys.stderr = f
+    print(f"--- Session started at {datetime.now()} ---")
+
+
+def start_http_server():
+    """Starts a simple HTTP server on port 8080 in a daemon thread"""
+    PORT = 8080
+    Handler = http.server.SimpleHTTPRequestHandler
+    socketserver.TCPServer.allow_reuse_address = True
+    
+    def serve():
+        try:
+            with socketserver.TCPServer(("", PORT), Handler) as httpd:
+                logging.info("Serving HTTP on port %d", PORT)
+                httpd.serve_forever()
+        except Exception as e:
+            logging.error("HTTP Server failed: %s", e)
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+
+
 def access_token_valid(stored: Dict[str, Any]) -> bool:
     if not stored:
         return False
@@ -255,8 +289,10 @@ def access_token_valid(stored: Dict[str, Any]) -> bool:
 
 
 def main():
+    setup_redirection()
     args = parse_args()
     setup_logging(args.verbose)
+    start_http_server()
 
     token_store = TokenStore(Path(args.token_file))
     session = requests_session()
@@ -286,61 +322,66 @@ def main():
             logging.info("Received refresh token (len=%d)", len(refresh_token))
         except Exception as e:
             logging.error("Failed to obtain refresh token: %s", e)
-            sys.exit(2)
-
-        try:
-            at = get_access_token(session, args.base_url, refresh_token)
-            access_token = at["access_token"]
-            access_expiry = at.get("access_expiry")
-            logging.info("Received access token (len=%d)", len(access_token))
-            token_store.save(access_token=access_token, expiry_iso=access_expiry, refresh_token=refresh_token, refresh_expiry=refresh_expiry)
-        except Exception as e:
-            logging.error("Failed to obtain access token: %s", e)
-            sys.exit(3)
+            # Instead of sys.exit, we'll just log and continue to keep the server alive
+            # but for MVP logic, maybe we still want to try the upload if possible.
+            # However, if auth fails, upload will fail.
+        else:
+            try:
+                at = get_access_token(session, args.base_url, refresh_token)
+                access_token = at["access_token"]
+                access_expiry = at.get("access_expiry")
+                logging.info("Received access token (len=%d)", len(access_token))
+                token_store.save(access_token=access_token, expiry_iso=access_expiry, refresh_token=refresh_token, refresh_expiry=refresh_expiry)
+            except Exception as e:
+                logging.error("Failed to obtain access token: %s", e)
 
     # Load upload payload
     upload_path = Path(args.upload_file)
     if not upload_path.exists():
         logging.error("Upload file not found: %s", upload_path)
-        sys.exit(4)
-
-    try:
-        with open(upload_path, "r", encoding="utf-8") as f:
-            payload = json.load(f)
-    except Exception as e:
-        logging.error("Failed to read upload file: %s", e)
-        sys.exit(5)
-
-    # Perform upload
-    try:
-        result = upload_employee_import(session, args.base_url, access_token, payload)
-        logging.info("Upload successful. Server response:")
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-    except requests.HTTPError as e:
-        # If 401, try one re-auth cycle (token might be expired)
-        resp = getattr(e, "response", None)
-        status = resp.status_code if resp is not None else "?"
-        text = resp.text if resp is not None else str(e)
-        logging.error("Upload failed: %s - %s", status, text)
-        if status == 401:
-            logging.info("Access token rejected; attempting one re-auth and retry")
+    else:
+        try:
+            with open(upload_path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            
+            # Perform upload
             try:
-                rt = refresh_token_request(session, args.base_url, args.login, args.password)
-                refresh_token = rt["refresh_token"]
-                at = get_access_token(session, args.base_url, refresh_token)
-                access_token = at["access_token"]
-                access_expiry = at.get("access_expiry")
-                token_store.save(access_token=access_token, expiry_iso=access_expiry, refresh_token=refresh_token, refresh_expiry=rt.get("refresh_expiry"))
                 result = upload_employee_import(session, args.base_url, access_token, payload)
-                logging.info("Retry upload successful. Server response:")
+                logging.info("Upload successful. Server response:")
                 print(json.dumps(result, indent=2, ensure_ascii=False))
-                return
-            except Exception as e2:
-                logging.error("Retry failed: %s", e2)
-        sys.exit(6)
+            except requests.HTTPError as e:
+                # If 401, try one re-auth cycle
+                resp = getattr(e, "response", None)
+                status = resp.status_code if resp is not None else "?"
+                text = resp.text if resp is not None else str(e)
+                logging.error("Upload failed: %s - %s", status, text)
+                if status == 401:
+                    logging.info("Access token rejected; attempting one re-auth and retry")
+                    try:
+                        rt = refresh_token_request(session, args.base_url, args.login, args.password)
+                        refresh_token = rt["refresh_token"]
+                        at = get_access_token(session, args.base_url, refresh_token)
+                        access_token = at["access_token"]
+                        access_expiry = at.get("access_expiry")
+                        token_store.save(access_token=access_token, expiry_iso=access_expiry, refresh_token=refresh_token, refresh_expiry=rt.get("refresh_expiry"))
+                        result = upload_employee_import(session, args.base_url, access_token, payload)
+                        logging.info("Retry upload successful. Server response:")
+                        print(json.dumps(result, indent=2, ensure_ascii=False))
+                    except Exception as e2:
+                        logging.error("Retry failed: %s", e2)
+            except Exception as e:
+                logging.error("Upload failed: %s", e)
+        except Exception as e:
+            logging.error("Failed to read upload file or JSON: %s", e)
+
+    logging.info("Upload process finished. Keeping HTTP server alive (Ctrl+C to stop).")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        logging.info("Shutting down...")
     except Exception as e:
-        logging.error("Upload failed: %s", e)
-        sys.exit(7)
+        logging.error("Unexpected error in main loop: %s", e)
 
 
 if __name__ == "__main__":

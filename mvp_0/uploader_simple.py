@@ -1,31 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# SPDX-FileComment: MitM Aggregator Python Prototype
+# SPDX-FileComment: MitM Aggregator Simple Python Prototype
 # SPDX-FileType: SOURCE
 # SPDX-FileContributor: ZHENG Robert
 # SPDX-FileCopyrightText: 2026 ZHENG Robert
 # SPDX-License-Identifier: Apache-2.0
 #
-# @file uploader.py
-# @brief Python uploader prototype with OAuth2 flow.
-# @version 0.2.0
+# @file uploader_simple.py
+# @brief Simple Python uploader prototype for API validation.
+# @version 0.1.0
 # @date 2026-05-10
 #
 # @author ZHENG Robert (robert @hase-zheng.net)
 # @copyright Copyright (c) 2026 ZHENG Robert
 # @LICENSE Apache-2.0
 #
-
 """
-uploader.py v0.2.0
+uploader.py
 Flow:
   1) POST /api/refreshtoken  -> returns {"Token": "...", "ExpiryDateTime": "..."}
   2) GET  /api/token/        -> Authorization: Bearer <RefreshToken>
                               returns {"AccessToken": "...", "AccessTokenExpiryDateTime": "..."}
   3) POST /api/employeeimport with Authorization: Bearer <AccessToken> and JSON body
 Usage:
-    ./uploader.py --base-url <CORITY_BASE_URL> --login <CORITY_LOGIN> --password <CORITY_PASSWORD> --upload-file <CORITY_UPLOAD_FILE>
+    ./uploader_simple.py --base-url <CORITY_BASE_URL> --login <CORITY_LOGIN> --password <CORITY_PASSWORD> --upload-file <CORITY_UPLOAD_FILE>
 """
 
 import argparse
@@ -45,8 +44,8 @@ from requests.adapters import HTTPAdapter, Retry
 # ---------------------------
 # Config
 # ---------------------------
-# DEFAULT_CONFIG_DIR = Path.home() / ".config" / APP_NAME
-DEFAULT_CONFIG_DIR = Path(__file__).parent.resolve()
+APP_NAME = "saas_cli"
+DEFAULT_CONFIG_DIR = Path.home() / ".config" / APP_NAME
 TOKEN_FILE = DEFAULT_CONFIG_DIR / "token.json"
 DEFAULT_TIMEOUT = 15
 RETRY_STRATEGY = Retry(total=3, backoff_factor=1, status_forcelist=(429, 500, 502, 503, 504))
@@ -216,25 +215,15 @@ def upload_employee_import(session: requests.Session, base_url: str, access_toke
 # CLI
 # ---------------------------
 def parse_args():
-    p = argparse.ArgumentParser(description="Authenticate (refresh->access) and upload employee import to Cority API")
-    p.add_argument("--base-url", default=os.environ.get("CORITY_BASE_URL"), help="Base URL, e.g. https://bmwgroup.demo.cority.com (env: CORITY_BASE_URL)")
-    p.add_argument("--login", default=os.environ.get("CORITY_LOGIN"), help="Login name for refresh token (env: CORITY_LOGIN)")
-    p.add_argument("--password", default=os.environ.get("CORITY_PASSWORD"), help="Password for refresh token (env: CORITY_PASSWORD)")
-    p.add_argument("--upload-file", default=os.environ.get("CORITY_UPLOAD_FILE", "data.json"), help="Path to JSON file (env: CORITY_UPLOAD_FILE, default: data.json)")
+    p = argparse.ArgumentParser(description="Authenticate (refresh->access) and upload employee import to saas API")
+    p.add_argument("--base-url", required=True, help="Base URL, e.g. https://mycompanygroup.demo.saas.com")
+    p.add_argument("--login", required=True, help="Login name for refresh token")
+    p.add_argument("--password", required=True, help="Password for refresh token")
+    p.add_argument("--upload-file", required=True, help="Path to JSON file with payload to upload (employeeimport body)")
     p.add_argument("--token-file", default=str(TOKEN_FILE), help=f"Where to store token (default: {TOKEN_FILE})")
     p.add_argument("--force-auth", action="store_true", help="Force re-authentication even if stored access token is valid")
     p.add_argument("--verbose", action="store_true", help="Verbose logging")
-    
-    args = p.parse_args()
-    if not args.base_url:
-        p.error("the following arguments are required: --base-url (or set environment variable CORITY_BASE_URL)")
-    if not args.login:
-        p.error("the following arguments are required: --login (or set environment variable CORITY_LOGIN)")
-    if not args.password:
-        p.error("the following arguments are required: --password (or set environment variable CORITY_PASSWORD)")
-    if not args.upload_file:
-        p.error("the following arguments are required: --upload-file (or set environment variable CORITY_UPLOAD_FILE)")
-    return args
+    return p.parse_args()
 
 
 def access_token_valid(stored: Dict[str, Any]) -> bool:

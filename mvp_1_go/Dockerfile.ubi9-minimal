@@ -1,0 +1,38 @@
+# Build Stage
+FROM golang:1.22 AS builder
+
+WORKDIR /app
+COPY go.mod ./
+# Download dependencies (if any)
+RUN go mod download || true
+
+COPY . .
+# Build a static binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o uploader-go .
+
+# Final minimal Stage
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+
+LABEL maintainer="ZHENG Robert (robert@hase-zheng.net)"
+LABEL description="Cority Uploader MVP_1 in Go on UBI 9 Minimal"
+
+# Create a non-root user
+RUN microdnf install -y shadow-utils && \
+    groupadd -r uploader && useradd -r -g uploader uploader && \
+    microdnf remove -y shadow-utils && \
+    microdnf clean all
+
+WORKDIR /app
+
+# Copy the binary from the builder stage
+COPY --from=builder /app/uploader-go .
+COPY data.json .
+COPY .env .
+
+RUN chown -R uploader:uploader /app
+
+USER uploader
+EXPOSE 8080
+
+
+CMD ["./uploader-go"]

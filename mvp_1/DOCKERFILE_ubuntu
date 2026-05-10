@@ -1,0 +1,38 @@
+# Base image
+FROM ubuntu:latest
+
+# Metadata
+LABEL maintainer="ZHENG Robert (robert@hase-zheng.net)"
+LABEL description="Cority Uploader MVP_1 on Ubuntu"
+
+# Avoid interactive prompts during apt-get
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python and dependencies
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip python3-requests && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user
+RUN groupadd -r uploader && useradd -r -g uploader uploader
+
+# Set working directory
+WORKDIR /app
+
+# Copy application files
+COPY uploader.py .
+COPY data.json .
+COPY .env .
+
+# Set permissions
+RUN chown -R uploader:uploader /app
+
+# Switch to non-root user
+USER uploader
+
+# Expose port 8080 for the internal HTTP server
+EXPOSE 8080
+
+# Start the script
+CMD ["python3", "uploader.py"]

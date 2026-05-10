@@ -1,0 +1,37 @@
+# Build Stage
+FROM golang:1.22 AS builder
+
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download || true
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o uploader-go .
+
+# Final Stage
+FROM ubuntu:latest
+
+LABEL maintainer="ZHENG Robert (robert@hase-zheng.net)"
+LABEL description="Cority Uploader MVP_1 in Go on Ubuntu"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies if needed, and create user
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    groupadd -r uploader && useradd -r -g uploader uploader && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /app/uploader-go .
+COPY data.json .
+COPY .env .
+
+RUN chown -R uploader:uploader /app
+
+USER uploader
+EXPOSE 8080
+
+
+CMD ["./uploader-go"]
